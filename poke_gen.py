@@ -102,7 +102,6 @@ def trouver_compagnon(df: pd.DataFrame, description_user: str, api_key: str):
     user_prompt = (
         "Voici la liste des Pokémon :\n"
         f"{pokemons_text}\n"
-        "-----------------------------\n\n"
         f"Description du dresseur : {description_user}\n\n"
         "Rappelle-toi : réponds uniquement par le Nom du Pokémon le plus compatible."
     )
@@ -217,3 +216,44 @@ if st.session_state.pokemons_df is not None:
     st.dataframe(st.session_state.pokemons_df)
 else:
     st.info("Aucun Pokémon généré pour le moment.")
+    
+st.markdown("### L'Oracle de Recommandation")
+
+personnalite_user = st.text_area(
+    "Décris ta personnalité",
+    placeholder="Exemple : Je suis fou, je ne réflechit pas",
+    height=120,
+)
+
+find_companion_button = st.button("Trouver mon compagnon idéal")
+
+if find_companion_button:
+    if st.session_state.pokemons_df is None or st.session_state.pokemons_df.empty:
+        st.error("Tu dois d'abord générer des Pokémon avant de pouvoir trouver ton compagnon.")
+    elif not groq_api_key:
+        st.error("Merci de renseigner ta clé API Groq dans la barre latérale pour utiliser l'Oracle.")
+    elif not personnalite_user.strip():
+        st.error("Décris ta personnalité pour que l'Oracle puisse travailler.")
+    else:
+        with st.spinner("L'Oracle analyse ta personnalité et les Pokémon générés..."):
+            champion = trouver_compagnon(
+                df=st.session_state.pokemons_df,
+                description_user=personnalite_user,
+                api_key=groq_api_key,
+            )
+
+            if champion is not None:
+                st.success(f"Ton compagnon idéal est : **{champion['Nom']}**")
+                st.markdown(
+                    f"**Description :** {champion.get('Description', 'Aucune description fournie.')}"
+                )
+                st.markdown(
+                    f"**Personnalité :** {champion.get('Personnalite', 'Aucune personnalité fournie.')}"
+                )
+                st.markdown(
+                    f"**Stats :** {champion.get('Stats', 'Aucune stats fournies.')}"
+                )
+
+                st.session_state.champion = champion.to_dict()
+            else:
+                st.warning("Impossible de déterminer un compagnon idéal. Réessaie peut-être avec une autre description.")
