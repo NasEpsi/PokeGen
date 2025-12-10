@@ -74,6 +74,71 @@ def generate_pokemons_with_groq(api_key: str, nb_pokemons: int, type_dominant: s
         st.error(f"Erreur lors de l'appel à l'API Groq : {e}")
         return []
 
+def trouver_compagnon(df: pd.DataFrame, description_user: str, api_key: str):
+    client = Groq(api_key=api_key)
+    pokemons_text_lines = []
+    for a, row in df.iterrows():
+        line = (
+            f"Nom: {row.get('Nom', '')} | "
+            f"Type: {row.get('Type', '')} | "
+            f"Personnalite: {row.get('Personnalite', '')} | "
+            f"Stats: {row.get('Stats', '')}"
+        )
+        pokemons_text_lines.append(line)
+
+    pokemons_text = "\n".join(pokemons_text_lines)
+
+    system_prompt = (
+        "Tu es un moteur de recommandation de Pokémon. "
+        "On te fournit une liste de Pokémon inventés avec leurs personnalités. "
+        "On te fournit aussi la description de la personnalité d'un dresseur.\n\n"
+        "Ta tâche : choisir le Pokémon le plus compatible avec ce dresseur.\n\n"
+        "CONTRAINTE ABSOLUE :\n"
+        "- Tu dois répondre UNIQUEMENT par le Nom EXACT d'un Pokémon présent dans la liste.\n"
+        "- Pas d'explication, pas de phrase, pas de ponctuation en plus.\n"
+        "- Juste le Nom tel qu'il apparaît dans la liste."
+    )
+
+    user_prompt = (
+        "Voici la liste des Pokémon :\n"
+        f"{pokemons_text}\n"
+        "-----------------------------\n\n"
+        f"Description du dresseur : {description_user}\n\n"
+        "Rappelle-toi : réponds uniquement par le Nom du Pokémon le plus compatible."
+    )
+
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,  
+        )
+
+        raw_name = completion.choices[0].message.content.strip()
+
+        if not raw_name:
+            raise ValueError("L'IA n'a renvoyé aucun nom de Pokémon.")
+
+        mask = df["Nom"].str.lower().str.strip() == raw_name.lower().strip()
+        if not mask.any():
+            mask = df["Nom"].str.lower().str.contains(raw_name.lower().strip())
+
+        if not mask.any():
+            st.warning(
+                f"L'IA a répondu '{raw_name}', mais ce nom ne correspond à aucun Pokémon généré."
+            )
+            return None
+
+        champion = df[mask].iloc[0]
+        return champion
+
+    except Exception as e:
+        st.error(f"Erreur lors de la recommandation : {e}")
+        return None
+
 
 # Sidebar
 
@@ -146,12 +211,9 @@ if generate_button:
             else:
                 st.warning("Aucun Pokémon n'a pu être généré. Vérifie ton prompt ou réessaie.")
 
-
 # Print the generated pokemons
 if st.session_state.pokemons_df is not None:
     st.markdown("### Pokémon déjà générés")
     st.dataframe(st.session_state.pokemons_df)
 else:
     st.info("Aucun Pokémon généré pour le moment.")
-
-
