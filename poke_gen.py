@@ -3,19 +3,73 @@ import pandas as pd
 import json
 from groq import Groq
 
+with open("styles.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # Config 
 st.set_page_config(
     page_title="PokéGen - Le laboratoire de Création",
-    page_icon="🧬",
+    page_icon="PG",
     layout="wide",
+)
+
+# Sidebar
+
+st.sidebar.title("Laboratoire")
+
+groq_api_key = st.sidebar.text_input(
+    "Clé API Groq",
+    type="password",
+    placeholder="Colle ici ta clé API"
+)
+
+nb_pokemons = st.sidebar.slider(
+    "Nombre de Pokémon à générer",
+    min_value=3,
+    max_value=10,
+    value=5
+)
+
+type_dominant = st.sidebar.text_input(
+    "Type dominant",
+    placeholder="Feu, Eau, Cyberpunk, Antique..."
+)
+
+# Bouton de réinitialisation dans la sidebar
+if st.sidebar.button("Réinitialiser le laboratoire"):
+    st.session_state.pokemons_df = None
+    st.session_state.champion = None
+    st.success("Le laboratoire a été réinitialisé.")
+
+# Page principale
+st.title("PokéGen - Le Laboratoire de Création")
+st.markdown(
+    """
+    Bienvenue dans le laboratoire de PokéGen.
+
+    Avec PokéGen, tu peux générer des Pokémon en utilisant l'IA Groq.
+    
+    Analyser leur personnalité et trouver leur compagnon idéal.
+    
+    Ensuite, tu peux exporter leur carte d'identité génétique en JSON pour les combats.
+
+    Pour commencer : 
+    - Renseigne ta clé API Groq dans la barre latérale.
+    - Détermine le nombre de Pokémon à générer.
+    - Tu peux renseigner le type dominant si tu le souhaites.
+    - Génère tes Pokémon.
+    - Exporte leurs cartes d'identité génétique en JSON.
+    """
 )
 
 if "pokemons_df" not in st.session_state:
     st.session_state.pokemons_df = None 
+
+if "champion" not in st.session_state:
+    st.session_state.champion = None
     
 # Function to generate pokemons with the Groq API
-def generate_pokemons_with_groq(api_key: str, nb_pokemons: int, type_dominant: str | None = None):
+def generate_pokemons_with_groq(api_key: str, nb_pokemons: int, type_dominant: str ):
     client = Groq(api_key=api_key)
     type_hint = ""
     if type_dominant:
@@ -77,11 +131,11 @@ def generate_pokemons_with_groq(api_key: str, nb_pokemons: int, type_dominant: s
 def trouver_compagnon(df: pd.DataFrame, description_user: str, api_key: str):
     client = Groq(api_key=api_key)
     pokemons_text_lines = []
-    for a, row in df.iterrows():
+    for row in df.iterrows():
         line = (
-            f"Nom: {row.get('Nom', '')} | "
-            f"Type: {row.get('Type', '')} | "
-            f"Personnalite: {row.get('Personnalite', '')} | "
+            f"Nom: {row.get('Nom', '')}"
+            f"Type: {row.get('Type', '')}"
+            f"Personnalite: {row.get('Personnalite', '')}"
             f"Stats: {row.get('Stats', '')}"
         )
         pokemons_text_lines.append(line)
@@ -138,50 +192,6 @@ def trouver_compagnon(df: pd.DataFrame, description_user: str, api_key: str):
         st.error(f"Erreur lors de la recommandation : {e}")
         return None
 
-
-# Sidebar
-
-st.sidebar.title("Laboratoire")
-
-groq_api_key = st.sidebar.text_input(
-    "Clé API Groq",
-    type="password",
-    placeholder="Colle ici ta clé API"
-)
-
-nb_pokemons = st.sidebar.slider(
-    "Nombre de Pokémon à générer",
-    min_value=3,
-    max_value=10,
-    value=5
-)
-
-type_dominant = st.sidebar.text_input(
-    "Type dominant",
-    placeholder="Feu, Eau, Cyberpunk, Antique..."
-)
-
-# Page principale
-st.title("PokéGen - Le Laboratoire de Création")
-st.markdown(
-    """
-    Bienvenue dans le laboratoire de PokéGen.
-
-    Avec PokéGen, tu peux générer des Pokémon en utilisant l'IA Groq.
-    
-    Analyser leur personnalité et trouver leur compagnon idéale.
-    
-    Ensuite, tu peux exporter leur carte d'identité genétique en JSON pour les combats.
-
-    Pour commencer : 
-    - Renseigne ta clé API Groq dans la barre latérale.
-    - Détermine le nombre de Pokémon à générer.
-    - Optionnellement, renseigne le type dominant.
-    - Génère tes Pokémons.
-    - Exporte leurs cartes d'identité génétique en JSON.
-    """
-)
-
 st.markdown("## Génération de Pokémon")
 
 generate_button = st.button("Générer de nouveaux Pokémon")
@@ -204,16 +214,26 @@ if generate_button:
                     if col not in df.columns:
                         df[col] = ""
 
+                ordered_cols = [c for c in ["Nom", "Type", "Description", "Personnalite", "Stats"] if c in df.columns]
+                df = df[ordered_cols]
+
                 st.session_state.pokemons_df = df
 
-                st.success(f"{len(df)} Pokémon générés avec succès !")
+                st.success(f"{len(df)} Pokémon générés avec succès.")
             else:
-                st.warning("Aucun Pokémon n'a pu être généré. Vérifie ton prompt ou réessaie.")
+                st.warning("Aucun Pokémon n'a pu être généré.")
 
 # Print the generated pokemons
 if st.session_state.pokemons_df is not None:
     st.markdown("### Pokémon déjà générés")
-    st.dataframe(st.session_state.pokemons_df)
+
+    df = st.session_state.pokemons_df
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 else:
     st.info("Aucun Pokémon généré pour le moment.")
     
@@ -221,7 +241,7 @@ st.markdown("### L'Oracle de Recommandation")
 
 personnalite_user = st.text_area(
     "Décris ta personnalité",
-    placeholder="Exemple : Je suis fou, je ne réflechit pas",
+    placeholder="Exemple : Je suis aventurier.",
     height=120,
 )
 
@@ -243,7 +263,9 @@ if find_companion_button:
             )
 
             if champion is not None:
-                st.success(f"Ton compagnon idéal est : **{champion['Nom']}**")
+                st.session_state.champion = champion.to_dict()
+
+                st.success(f"Ton compagnon idéal est : {champion['Nom']}")
                 st.markdown(
                     f"**Description :** {champion.get('Description', 'Aucune description fournie.')}"
                 )
@@ -253,13 +275,11 @@ if find_companion_button:
                 st.markdown(
                     f"**Stats :** {champion.get('Stats', 'Aucune stats fournies.')}"
                 )
-
-                st.session_state.champion = champion.to_dict()
             else:
                 st.warning("Impossible de déterminer un compagnon idéal. Réessaie peut-être avec une autre description.")
                 
                 
-st.markdown("### Extraction : Carte d'identité JSON du champion")
+st.markdown("### Extraction : Carte d'identité JSON du pokemon")
 
 if "champion" in st.session_state and st.session_state.champion is not None:
     champion_json_str = json.dumps(
@@ -269,7 +289,7 @@ if "champion" in st.session_state and st.session_state.champion is not None:
     )
 
     st.markdown(
-        "Voici la carte d'identité JSON de ton champion. "
+        "Voici la carte d'identité JSON de ton pokemon."
     )
 
     st.code(champion_json_str, language="json")
@@ -278,4 +298,3 @@ else:
         "Aucun champion n'est encore sélectionné. "
         "Utilise d'abord l'Oracle de Recommandation pour trouver ton compagnon idéal."
     )
-
