@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import json
+from groq import Groq
+
 
 # Config 
 st.set_page_config(
@@ -10,6 +13,67 @@ st.set_page_config(
 
 if "pokemons_df" not in st.session_state:
     st.session_state.pokemons_df = None 
+    
+# Function to generate pokemons with the Groq API
+def generate_pokemons_with_groq(api_key: str, nb_pokemons: int, type_dominant: str | None = None):
+    client = Groq(api_key=api_key)
+    type_hint = ""
+    if type_dominant:
+        type_hint = f" Ces Pokémon doivent partager un type dominant ou une esthétique '{type_dominant}'."
+
+    system_prompt = (
+        "Tu es une API de base de données Pokémon. "
+        "Tu dois répondre UNIQUEMENT avec un objet JSON valide, sans texte autour, "
+        "sans explication, sans commentaire.\n\n"
+        "Le JSON doit avoir la structure suivante :\n"
+        "{\n"
+        '  "pokemons": [\n'
+        "    {\n"
+        '      "Nom": "Nom du Pokémon",\n'
+        '      "Type": "Type principal ou mélange de types",\n'
+        '      "Description": "Description courte du Pokémon",\n'
+        '      "Personnalite": "Description de sa personnalité",\n'
+        '      "Stats": "Résumé rapide de ses forces et faiblesses"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "Tous les champs doivent être des chaînes de caractères (string). "
+        "La réponse DOIT être un JSON sérialisable, sans commentaires, sans trailing commas."
+    )
+
+    user_prompt = (
+        f"Génère une liste de {nb_pokemons} Pokémon entièrement inédits.{type_hint}\n"
+        "Chaque Pokémon doit avoir un style unique et une personnalité différentes."
+    )
+
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.9,
+        )
+
+        raw_content = completion.choices[0].message.content
+        data = json.loads(raw_content)
+        pokemons_list = data.get("pokemons", [])
+
+        if not isinstance(pokemons_list, list):
+            raise ValueError("Le champ 'pokemons' n'est pas une liste.")
+
+        return pokemons_list
+
+    except json.JSONDecodeError as e:
+        st.error(f"Erreur de parsing JSON : {e}")
+        st.code(raw_content)
+        return []
+    except Exception as e:
+        st.error(f"Erreur lors de l'appel à l'API Groq : {e}")
+        return []
+
 
 # Sidebar
 
@@ -18,7 +82,7 @@ st.sidebar.title("Laboratoire")
 groq_api_key = st.sidebar.text_input(
     "Clé API Groq",
     type="password",
-    help="Colle ici ta clé API depuis console.groq.com"
+    placeholder="Colle ici ta clé API"
 )
 
 nb_pokemons = st.sidebar.slider(
@@ -32,4 +96,5 @@ type_dominant = st.sidebar.text_input(
     "Type dominant",
     placeholder="Feu, Eau, Cyberpunk, Antique..."
 )
+# Page principale
 
