@@ -131,11 +131,11 @@ def generate_pokemons_with_groq(api_key: str, nb_pokemons: int, type_dominant: s
 def trouver_compagnon(df: pd.DataFrame, description_user: str, api_key: str):
     client = Groq(api_key=api_key)
     pokemons_text_lines = []
-    for row in df.iterrows():
+    for _, row in df.iterrows():
         line = (
-            f"Nom: {row.get('Nom', '')}"
-            f"Type: {row.get('Type', '')}"
-            f"Personnalite: {row.get('Personnalite', '')}"
+            f"Nom: {row.get('Nom', '')} | "
+            f"Type: {row.get('Type', '')} | "
+            f"Personnalite: {row.get('Personnalite', '')} | "
             f"Stats: {row.get('Stats', '')}"
         )
         pokemons_text_lines.append(line)
@@ -214,6 +214,7 @@ if generate_button:
                     if col not in df.columns:
                         df[col] = ""
 
+                # On réordonne les colonnes pour un affichage plus lisible
                 ordered_cols = [c for c in ["Nom", "Type", "Description", "Personnalite", "Stats"] if c in df.columns]
                 df = df[ordered_cols]
 
@@ -221,7 +222,7 @@ if generate_button:
 
                 st.success(f"{len(df)} Pokémon générés avec succès.")
             else:
-                st.warning("Aucun Pokémon n'a pu être généré.")
+                st.warning("Aucun Pokémon n'a pu être généré. Vérifie ton prompt ou réessaie.")
 
 # Print the generated pokemons
 if st.session_state.pokemons_df is not None:
@@ -229,6 +230,7 @@ if st.session_state.pokemons_df is not None:
 
     df = st.session_state.pokemons_df
 
+    # Tableau en pleine largeur, sans index
     st.dataframe(
         df,
         use_container_width=True,
@@ -241,7 +243,7 @@ st.markdown("### L'Oracle de Recommandation")
 
 personnalite_user = st.text_area(
     "Décris ta personnalité",
-    placeholder="Exemple : Je suis aventurier.",
+    placeholder="Exemple : Je suis impulsif, j'aime l'action et je n'abandonne jamais.",
     height=120,
 )
 
