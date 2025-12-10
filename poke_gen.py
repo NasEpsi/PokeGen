@@ -96,5 +96,62 @@ type_dominant = st.sidebar.text_input(
     "Type dominant",
     placeholder="Feu, Eau, Cyberpunk, Antique..."
 )
+
 # Page principale
+st.title("PokéGen - Le Laboratoire de Création")
+st.markdown(
+    """
+    Bienvenue dans le laboratoire de PokéGen.
+
+    Avec PokéGen, tu peux générer des Pokémon en utilisant l'IA Groq.
+    
+    Analyser leur personnalité et trouver leur compagnon idéale.
+    
+    Ensuite, tu peux exporter leur carte d'identité genétique en JSON pour les combats.
+
+    Pour commencer : 
+    - Renseigne ta clé API Groq dans la barre latérale.
+    - Détermine le nombre de Pokémon à générer.
+    - Optionnellement, renseigne le type dominant.
+    - Génère tes Pokémons.
+    - Exporte leurs cartes d'identité génétique en JSON.
+    """
+)
+
+st.markdown("## Génération de Pokémon")
+
+generate_button = st.button("Générer de nouveaux Pokémon")
+
+if generate_button:
+    if not groq_api_key:
+        st.error("Merci de renseigner ta clé API Groq dans la barre latérale avant de générer des Pokémon.")
+    else:
+        with st.spinner("Génération de nouveaux Pokémon en cours..."):
+            pokemons_list = generate_pokemons_with_groq(
+                api_key=groq_api_key,
+                nb_pokemons=nb_pokemons,
+                type_dominant=type_dominant if type_dominant.strip() else None,
+            )
+
+            if pokemons_list:
+                df = pd.DataFrame(pokemons_list)
+
+                for col in ["Nom", "Type", "Description", "Personnalite", "Stats"]:
+                    if col not in df.columns:
+                        df[col] = ""
+
+                st.session_state.pokemons_df = df
+
+                st.success(f"{len(df)} Pokémon générés avec succès !")
+            else:
+                st.warning("Aucun Pokémon n'a pu être généré. Vérifie ton prompt ou réessaie.")
+
+
+# Print the generated pokemons
+if st.session_state.pokemons_df is not None:
+    st.markdown("### Pokémon déjà générés")
+    st.dataframe(st.session_state.pokemons_df)
+else:
+    st.info("Aucun Pokémon généré pour le moment.")
+
 
