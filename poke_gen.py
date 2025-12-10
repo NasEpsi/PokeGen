@@ -257,3 +257,25 @@ if find_companion_button:
                 st.session_state.champion = champion.to_dict()
             else:
                 st.warning("Impossible de déterminer un compagnon idéal. Réessaie peut-être avec une autre description.")
+                
+                
+st.markdown("### Extraction : Carte d'identité JSON du champion")
+
+if "champion" in st.session_state and st.session_state.champion is not None:
+    champion_json_str = json.dumps(
+        st.session_state.champion,
+        ensure_ascii=False,
+        indent=2
+    )
+
+    st.markdown(
+        "Voici la carte d'identité JSON de ton champion. "
+    )
+
+    st.code(champion_json_str, language="json")
+else:
+    st.info(
+        "Aucun champion n'est encore sélectionné. "
+        "Utilise d'abord l'Oracle de Recommandation pour trouver ton compagnon idéal."
+    )
+
